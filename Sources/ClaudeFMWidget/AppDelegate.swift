@@ -60,12 +60,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.contentView = NSHostingView(rootView: ContentView())
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Swallow all right-mouse events so no context menu ever appears
+        NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { _ in nil }
     }
 
     // Dock icon click or Cmd+S → re-show the widget
     @objc func showWindow() {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        AppState.shared.resumeVideo()
     }
 
     // Called when user clicks the Dock icon while app is already running

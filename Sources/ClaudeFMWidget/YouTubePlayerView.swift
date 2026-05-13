@@ -2,10 +2,8 @@ import SwiftUI
 import WebKit
 
 struct YouTubePlayerView: NSViewRepresentable {
-    // Full watch page — avoids Error 153 embedding restrictions
     private let watchURL = URL(string: "https://www.youtube.com/watch?v=YmQ7jRgf4f0")!
 
-    // JS injected after page loads: hides YouTube chrome, keeps only the video
     private let cleanupScript = """
     (function() {
         var style = document.createElement('style');
@@ -33,6 +31,9 @@ struct YouTubePlayerView: NSViewRepresentable {
             ytd-app { overflow: hidden !important; }
         `;
         document.head.appendChild(style);
+
+        // Disable right-click context menu inside the page
+        document.addEventListener('contextmenu', function(e) { e.preventDefault(); }, true);
     })();
     """
 
@@ -40,7 +41,6 @@ struct YouTubePlayerView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.mediaTypesRequiringUserActionForPlayback = []
 
-        // Inject cleanup script on every page navigation
         let userScript = WKUserScript(
             source: cleanupScript,
             injectionTime: .atDocumentEnd,
@@ -56,12 +56,11 @@ struct YouTubePlayerView: NSViewRepresentable {
         webView.allowsMagnification = false
         webView.allowsBackForwardNavigationGestures = false
         webView.setValue(false, forKey: "drawsBackground")
-
-        // Use a real browser UA so YouTube serves the full experience
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
             "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
         webView.load(URLRequest(url: watchURL))
+        AppState.shared.webView = webView
         return webView
     }
 

@@ -94,7 +94,8 @@ private struct CloseButton: View {
 
     var body: some View {
         Button {
-            NSApplication.shared.keyWindow?.orderOut(nil)   // hide, don't quit
+            AppState.shared.pauseVideo()
+            NSApplication.shared.keyWindow?.orderOut(nil)
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 9, weight: .bold))
