@@ -15,6 +15,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(item)
         let appMenu = NSMenu()
         appMenu.addItem(NSMenuItem(
+            title: "Show Claude FM",
+            action: #selector(showWindow),
+            keyEquivalent: "s"
+        ))
+        appMenu.addItem(.separator())
+        appMenu.addItem(NSMenuItem(
             title: "Quit Claude FM",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
@@ -25,11 +31,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupWindow() {
         let width: CGFloat = 380
-        let videoHeight: CGFloat = (width * 9 / 16).rounded()   // 213
+        let videoHeight: CGFloat = (width * 9 / 16).rounded()
         let barHeight: CGFloat = 54
-        let totalHeight = videoHeight + barHeight                // 267
+        let totalHeight = videoHeight + barHeight
 
-        // Position: top-right corner, inset from edge
         let screen = NSScreen.main?.visibleFrame ?? .zero
         let origin = CGPoint(
             x: screen.maxX - width - 20,
@@ -38,7 +43,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         window = NSPanel(
             contentRect: NSRect(origin: origin, size: CGSize(width: width, height: totalHeight)),
-            // .borderless removes the title bar entirely (no black bar)
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -50,18 +54,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         window.level = .floating
         window.isReleasedWhenClosed = false
         window.hasShadow = true
-        // Prevent the panel from hiding when it loses focus (fixes right-click close)
         window.hidesOnDeactivate = false
         window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-        let hosting = NSHostingView(rootView: ContentView())
-        window.contentView = hosting
-
+        window.contentView = NSHostingView(rootView: ContentView())
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    // Dock icon click or Cmd+S → re-show the widget
+    @objc func showWindow() {
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    // Called when user clicks the Dock icon while app is already running
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        showWindow()
+        return true
+    }
+
+    // Don't quit when window is hidden — let it live in the Dock
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
     }
 }
