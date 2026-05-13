@@ -65,7 +65,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSEvent.addLocalMonitorForEvents(matching: .rightMouseDown) { _ in nil }
     }
 
-    // Dock icon click or Cmd+S → re-show the widget
+    func hideWindow() {
+        window.orderOut(nil)
+    }
+
     @objc func showWindow() {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
