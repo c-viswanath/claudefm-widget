@@ -8,6 +8,7 @@
 
 <link rel="icon" href="icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
 /* ── Reset ──────────────────────────────────────────────────────────────── */
@@ -444,13 +445,7 @@ body::before {
   <div class="modal-box">
     <button class="modal-close" onclick="closeSupport()">✕</button>
     <p class="modal-title">BUY ME A COFFEE</p>
-    <div id="qr-wrap">
-      <img src="phonepe_qr.png" alt="PhonePe QR" width="200" height="200"
-           onerror="this.style.display='none';document.getElementById('qr-fallback').style.display='block'">
-      <p id="qr-fallback" style="display:none;font-size:7px;color:#888;text-align:center;padding:20px;width:200px">
-        QR not loaded.<br><br>Add phonepe_qr.png<br>to docs/
-      </p>
-    </div>
+    <div id="qr-wrap"></div>
     <p class="modal-sub">
       C VISWANATH<br><br>
       SCAN WITH ANY UPI APP<br>
@@ -479,6 +474,16 @@ body::before {
 </div>
 
 <script>
+/* ── QR code (generated once on load) ──────────────────────────────── */
+new QRCode(document.getElementById('qr-wrap'), {
+  text        : 'upi://pay?pa=7008107661@axl&pn=C%20Viswanath&cu=INR',
+  width       : 200,
+  height      : 200,
+  colorDark   : '#000000',
+  colorLight  : '#ffffff',
+  correctLevel: QRCode.CorrectLevel.H
+});
+
 /* ── Modal ─────────────────────────────────────────────────────────── */
 function openSupport() {
   document.getElementById('modal-overlay').classList.add('open');
