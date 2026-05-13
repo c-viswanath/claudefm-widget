@@ -1,0 +1,10 @@
+.build/
+*.o
+*.d
+ClaudeFM.app/
+ClaudeFM.dmg
+temp_claudefm.dmg
+AppIcon.icns
+AppIcon.iconset/
+.DS_Store
+*.swp
