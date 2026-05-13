@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude FM Widget</title>
+<meta name="description" content="A floating macOS widget for the Claude FM 24/7 lo-fi live stream. Music for thinking & building.">
+
+<link rel="icon" href="icon.png">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+/* ── Reset ──────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --orange : #E97532;
+  --blue   : #4299E1;
+  --bg     : #09090B;
+  --fg     : #FFFFFF;
+  --muted  : #555566;
+  --pixel  : 2px;          /* base pixel unit */
+}
+
+body {
+  font-family: 'Press Start 2P', monospace;
+  background: var(--bg);
+  color: var(--fg);
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── YouTube background ─────────────────────────────────────────────────── */
+#yt-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 2s ease;
+  pointer-events: none;
+}
+#yt-wrap.visible { opacity: 1; }
+
+#yt-player {
+  position: absolute;
+  /* Oversized so 16:9 covers any viewport */
+  top: 50%; left: 50%;
+  width: 177.8vh;   /* 16/9 * 100vh */
+  height: 100vh;
+  min-width: 100vw;
+  min-height: 56.25vw;  /* 9/16 * 100vw */
+  transform: translate(-50%, -50%);
+}
+#yt-player iframe { width: 100%; height: 100%; border: 0; }
+
+/* Dark + blur overlay over the video */
+#yt-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(9, 9, 11, 0.82);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/* ── LOADER ─────────────────────────────────────────────────────────────── */
+#loader {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+#loader.done {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* Pixel-art bouncing + glowing icon */
+#loader-icon {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+  animation: octo-bounce 0.9s ease-in-out infinite,
+             octo-glow   1.8s ease-in-out infinite;
+}
+
+@keyframes octo-bounce {
+  0%, 100% { transform: translateY(0)     scale(1);    }
+  50%       { transform: translateY(-14px) scale(1.06); }
+}
+@keyframes octo-glow {
+  0%, 100% { filter: drop-shadow(0 0  2px var(--orange)); }
+  50%       { filter: drop-shadow(0 0 18px var(--orange))
+                      drop-shadow(0 0 36px var(--blue)); }
+}
+
+/* Pixelated progress bar */
+.px-bar {
+  width: 160px;
+  height: 10px;
+  background: #1a1a1f;
+  image-rendering: pixelated;
+  position: relative;
+  overflow: hidden;
+  outline: var(--pixel) solid #333;
+}
+.px-bar-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: var(--orange);
+  animation: bar-fill 3s steps(16, end) forwards;
+}
+@keyframes bar-fill {
+  0%   { width: 0%; }
+  60%  { width: 75%; }
+  100% { width: 100%; }
+}
+
+.px-bar-scan {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 8px,
+    rgba(0,0,0,0.4) 8px,
+    rgba(0,0,0,0.4) 10px
+  );
+}
+
+.loader-label {
+  font-size: 7px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  animation: blink 1.1s step-end infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+
+/* ── MAIN CONTENT ───────────────────────────────────────────────────────── */
+#content {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 40px 24px;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 1s ease 0.2s, transform 1s ease 0.2s;
+  pointer-events: none;
+}
+#content.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Hero icon */
+.hero-icon {
+  width: 88px;
+  height: 88px;
+  image-rendering: pixelated;
+  animation: hero-float 3s ease-in-out infinite;
+}
+@keyframes hero-float {
+  0%, 100% { transform: translateY(0);    }
+  50%       { transform: translateY(-6px); }
+}
+
+/* Title */
+h1 {
+  font-size: clamp(14px, 3vw, 20px);
+  letter-spacing: 0.06em;
+  color: var(--fg);
+  text-shadow: 0 0 24px rgba(233,117,50,0.5);
+}
+
+.subtitle {
+  font-size: 7px;
+  color: var(--muted);
+  letter-spacing: 0.14em;
+  text-transform: lowercase;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: transform 0.06s, box-shadow 0.06s;
+}
+
+/* Pixel-press effect */
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: none !important;
+}
+
+.download-btn {
+  background: var(--orange);
+  color: #0a0a0a;
+  padding: 14px 24px;
+  box-shadow: 4px 4px 0 #7a3010;
+}
+.download-btn:hover {
+  background: #ff8540;
+  box-shadow: 6px 6px 0 #7a3010;
+  transform: translate(-1px, -1px);
+}
+
+.support-btn {
+  background: transparent;
+  color: var(--blue);
+  padding: 12px 22px;
+  box-shadow: 4px 4px 0 #1a4a80, inset 0 0 0 2px var(--blue);
+}
+.support-btn:hover {
+  background: rgba(66,153,225,0.08);
+  box-shadow: 6px 6px 0 #1a4a80, inset 0 0 0 2px var(--blue);
+  transform: translate(-1px, -1px);
+}
+
+/* ── Meta row ───────────────────────────────────────────────────────────── */
+.meta {
+  font-size: 6px;
+  color: #333344;
+  letter-spacing: 0.12em;
+}
+.meta a {
+  color: #444455;
+  text-decoration: none;
+}
+.meta a:hover { color: var(--muted); }
+
+/* ── SUPPORT MODAL ──────────────────────────────────────────────────────── */
+#modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(9,9,11,0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s, visibility 0.25s;
+  cursor: pointer;
+}
+#modal-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-box {
+  background: #111116;
+  padding: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  outline: 2px solid #2a2a3a;
+  box-shadow: 8px 8px 0 #1a1a28;
+  cursor: default;
+  max-width: 320px;
+  width: 100%;
+  position: relative;
+}
+
+.modal-title {
+  font-size: 10px;
+  color: var(--blue);
+  letter-spacing: 0.12em;
+}
+
+/* QR code wrapper — styled as pixel frame */
+#qr-wrap {
+  padding: 12px;
+  background: #fff;
+  outline: 4px solid #2a2a3a;
+  box-shadow: 4px 4px 0 #111;
+  image-rendering: pixelated;
+}
+#qr-wrap canvas, #qr-wrap img {
+  display: block;
+  image-rendering: pixelated;
+}
+
+.modal-sub {
+  font-size: 6px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-align: center;
+  line-height: 2;
+}
+
+.modal-close {
+  position: absolute;
+  top: 12px; right: 14px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: var(--muted);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.modal-close:hover { color: var(--fg); }
+
+/* Live badge */
+.live-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 7px;
+  color: #ff4444;
+  letter-spacing: 0.12em;
+}
+.live-dot {
+  width: 7px; height: 7px;
+  background: #ff3333;
+  border-radius: 50%;
+  animation: pulse-dot 1.4s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,50,50,0.6); }
+  50%       { box-shadow: 0 0 0 5px rgba(255,50,50,0); }
+}
+
+/* Scanlines overlay — gives the whole page a subtle CRT feel */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.04) 2px,
+    rgba(0,0,0,0.04) 4px
+  );
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<!-- ── YouTube background ──────────────────────────────────────────────── -->
+<div id="yt-wrap">
+  <div id="yt-player"></div>
+</div>
+
+<!-- ── Loader ──────────────────────────────────────────────────────────── -->
+<div id="loader">
+  <img id="loader-icon" src="icon.png" alt="Claude FM">
+  <div class="px-bar">
+    <div class="px-bar-fill"></div>
+    <div class="px-bar-scan"></div>
+  </div>
+  <p class="loader-label">LOADING CLAUDE FM...</p>
+</div>
+
+<!-- ── Main content ────────────────────────────────────────────────────── -->
+<div id="content">
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    <span>LIVE NOW</span>
+  </div>
+
+  <img class="hero-icon" src="icon.png" alt="Claude FM">
+
+  <h1>CLAUDE FM</h1>
+  <p class="subtitle">music for thinking &amp; building</p>
+
+  <a class="btn download-btn"
+     href="https://github.com/c-viswanath/claudefm-widget/releases/download/v1.0/ClaudeFM.dmg"
+     download>
+    ↓ &nbsp;DOWNLOAD FOR MACOS
+  </a>
+
+  <button class="btn support-btn" onclick="openSupport()">
+    ♥ &nbsp;BUY ME A COFFEE
+  </button>
+
+  <p class="meta">
+    macOS 13+ &nbsp;•&nbsp; free &nbsp;•&nbsp;
+    <a href="https://github.com/c-viswanath/claudefm-widget" target="_blank">open source</a>
+  </p>
+</div>
+
+<!-- ── Support modal ───────────────────────────────────────────────────── -->
+<div id="modal-overlay" onclick="closeSupport(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeSupport()">✕</button>
+    <p class="modal-title">BUY ME A COFFEE</p>
+    <div id="qr-wrap"></div>
+    <p class="modal-sub">
+      SCAN WITH ANY UPI APP<br>
+      GPAY · PHONEPE · PAYTM
+    </p>
+  </div>
+</div>
+
+<script>
+/* ── Config ──────────────────────────────────────────────────────────────
+   Replace YOUR_UPI_ID below with your actual UPI ID, e.g. name@okicici
+   ──────────────────────────────────────────────────────────────────── */
+var UPI_ID   = 'YOUR_UPI_ID@upi';       // ← update this
+var UPI_NAME = 'Viswanath';
+var UPI_LINK = 'upi://pay?pa=' + UPI_ID + '&pn=' + encodeURIComponent(UPI_NAME) + '&cu=INR';
+
+/* ── QR generation (runs once on load) ─────────────────────────────── */
+new QRCode(document.getElementById('qr-wrap'), {
+  text   : UPI_LINK,
+  width  : 200,
+  height : 200,
+  colorDark  : '#000000',
+  colorLight : '#ffffff',
+  correctLevel: QRCode.CorrectLevel.H
+});
+
+/* ── Modal ─────────────────────────────────────────────────────────── */
+function openSupport() {
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeSupport(e) {
+  if (!e || e.target === document.getElementById('modal-overlay') || e.currentTarget === document.querySelector('.modal-close')) {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+}
+
+/* ── Page activation ────────────────────────────────────────────────── */
+var activated = false;
+
+function activate() {
+  if (activated) return;
+  activated = true;
+  document.getElementById('loader').classList.add('done');
+  document.getElementById('content').classList.add('visible');
+  document.getElementById('yt-wrap').classList.add('visible');
+}
+
+/* Fallback: show page after 5 s regardless */
+setTimeout(activate, 5000);
+
+/* ── YouTube IFrame API ─────────────────────────────────────────────── */
+var tag = document.createElement('script');
+tag.src = 'https://www.youtube.com/iframe_api';
+document.head.appendChild(tag);
+
+function onYouTubeIframeAPIReady() {
+  new YT.Player('yt-player', {
+    videoId: 'YmQ7jRgf4f0',
+    playerVars: {
+      autoplay       : 1,
+      mute           : 1,
+      controls       : 0,
+      loop           : 1,
+      playlist       : 'YmQ7jRgf4f0',
+      rel            : 0,
+      iv_load_policy : 3,
+      modestbranding : 1,
+      disablekb      : 1,
+      fs             : 0
+    },
+    events: {
+      onReady: function(e) {
+        e.target.mute();
+        e.target.playVideo();
+        /* Small delay so the bar animation has time to finish */
+        setTimeout(activate, 900);
+      },
+      onError: activate   /* still activate on error */
+    }
+  });
+}
+</script>
+</body>
+</html>
