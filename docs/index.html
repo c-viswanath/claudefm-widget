@@ -8,7 +8,6 @@
 
 <link rel="icon" href="icon.png">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
 /* ── Reset ──────────────────────────────────────────────────────────────── */
@@ -326,6 +325,37 @@ h1 {
 }
 .modal-close:hover { color: var(--fg); }
 
+/* reuse same overlay style for tip modal */
+#tip-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(9,9,11,0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s, visibility 0.25s;
+  cursor: pointer;
+}
+#tip-overlay.open { opacity: 1; visibility: visible; }
+
+.tip-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  letter-spacing: 0.08em;
+  color: #444455;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: #333344;
+}
+.tip-btn:hover { color: var(--muted); }
+
 /* Live badge */
 .live-badge {
   display: flex;
@@ -406,47 +436,68 @@ body::before {
     macOS 13+ &nbsp;•&nbsp; free &nbsp;•&nbsp;
     <a href="https://github.com/c-viswanath/claudefm-widget" target="_blank">open source</a>
   </p>
+  <button class="tip-btn" onclick="openTip()">can't open the app?</button>
 </div>
 
 <!-- ── Support modal ───────────────────────────────────────────────────── -->
-<div id="modal-overlay" onclick="closeSupport(event)">
+<div id="modal-overlay" onclick="closeSupportOverlay(event)">
   <div class="modal-box">
     <button class="modal-close" onclick="closeSupport()">✕</button>
     <p class="modal-title">BUY ME A COFFEE</p>
-    <div id="qr-wrap"></div>
+    <div id="qr-wrap">
+      <img src="phonepe_qr.png" alt="PhonePe QR" width="200" height="200"
+           onerror="this.style.display='none';document.getElementById('qr-fallback').style.display='block'">
+      <p id="qr-fallback" style="display:none;font-size:7px;color:#888;text-align:center;padding:20px;width:200px">
+        QR not loaded.<br><br>Add phonepe_qr.png<br>to docs/
+      </p>
+    </div>
     <p class="modal-sub">
+      C VISWANATH<br><br>
       SCAN WITH ANY UPI APP<br>
       GPAY · PHONEPE · PAYTM
     </p>
   </div>
 </div>
 
+<!-- ── Install tip modal ────────────────────────────────────────────────── -->
+<div id="tip-overlay" onclick="closeTipOverlay(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeTip()">✕</button>
+    <p class="modal-title" style="color:var(--orange)">INSTALL HELP</p>
+    <div style="font-size:7px;color:#aaa;line-height:2.4;text-align:left;width:100%">
+      <p style="color:#fff;margin-bottom:8px">IF MACOS BLOCKS THE APP:</p>
+      <p>① DRAG CLAUDEFM TO APPLICATIONS</p>
+      <p style="margin-top:12px">② OPEN TERMINAL AND RUN:</p>
+      <div style="background:#000;padding:10px;margin-top:8px;outline:2px solid #333;font-size:6px;color:var(--orange);word-break:break-all">
+        xattr -rd com.apple.quarantine /Applications/ClaudeFM.app
+      </div>
+      <p style="margin-top:12px">③ THEN DOUBLE-CLICK NORMALLY</p>
+      <p style="margin-top:12px;color:#555">— OR —</p>
+      <p style="margin-top:12px">SYSTEM SETTINGS → PRIVACY &amp; SECURITY → "OPEN ANYWAY"</p>
+    </div>
+  </div>
+</div>
+
 <script>
-/* ── Config ──────────────────────────────────────────────────────────────
-   Replace YOUR_UPI_ID below with your actual UPI ID, e.g. name@okicici
-   ──────────────────────────────────────────────────────────────────── */
-var UPI_ID   = 'YOUR_UPI_ID@upi';       // ← update this
-var UPI_NAME = 'Viswanath';
-var UPI_LINK = 'upi://pay?pa=' + UPI_ID + '&pn=' + encodeURIComponent(UPI_NAME) + '&cu=INR';
-
-/* ── QR generation (runs once on load) ─────────────────────────────── */
-new QRCode(document.getElementById('qr-wrap'), {
-  text   : UPI_LINK,
-  width  : 200,
-  height : 200,
-  colorDark  : '#000000',
-  colorLight : '#ffffff',
-  correctLevel: QRCode.CorrectLevel.H
-});
-
 /* ── Modal ─────────────────────────────────────────────────────────── */
 function openSupport() {
   document.getElementById('modal-overlay').classList.add('open');
 }
-function closeSupport(e) {
-  if (!e || e.target === document.getElementById('modal-overlay') || e.currentTarget === document.querySelector('.modal-close')) {
-    document.getElementById('modal-overlay').classList.remove('open');
-  }
+function closeSupport() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+function closeSupportOverlay(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeSupport();
+}
+
+function openTip() {
+  document.getElementById('tip-overlay').classList.add('open');
+}
+function closeTip() {
+  document.getElementById('tip-overlay').classList.remove('open');
+}
+function closeTipOverlay(e) {
+  if (e.target === document.getElementById('tip-overlay')) closeTip();
 }
 
 /* ── Page activation ────────────────────────────────────────────────── */
