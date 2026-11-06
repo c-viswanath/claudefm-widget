@@ -8,6 +8,32 @@ struct YouTubePlayerView: NSViewRepresentable {
     private let watchURL = URL(string: "https://www.youtube.com/watch?v=tRsQsTMvPNg")!
     private static let fallbackURL = URL(string: "https://www.youtube.com/@claude/live")!
     private static let statusHandler = "streamStatus"
+    private static let stateHandler = "playerState"
+
+    // Reports play/pause/volume changes so the bar's controls match the player
+    // and AppState can undo volume changes YouTube makes on its own. Media
+    // events don't bubble, so listen in the capture phase on the document.
+    private let stateScript = """
+    (function() {
+        var first = true;
+        function report(v) {
+            var p = document.getElementById('movie_player');
+            var api = p && typeof p.getVolume === 'function' && typeof p.isMuted === 'function';
+            window.webkit.messageHandlers.playerState.postMessage({
+                paused: v.paused,
+                volume: api ? p.getVolume() / 100 : v.volume,
+                muted:  api ? p.isMuted() : v.muted,
+                first:  first && !v.paused
+            });
+            if (!v.paused) first = false;
+        }
+        ['playing', 'pause', 'volumechange'].forEach(function(type) {
+            document.addEventListener(type, function(e) {
+                if (e.target instanceof HTMLVideoElement) report(e.target);
+            }, true);
+        });
+    })();
+    """
 
     // Reports the player's playability ("OK", "LOGIN_REQUIRED" for private,
     // "ERROR" for removed, …) back to Swift once the watch page has loaded.
@@ -25,6 +51,10 @@ struct YouTubePlayerView: NSViewRepresentable {
 
         func userContentController(_ controller: WKUserContentController,
                                    didReceive message: WKScriptMessage) {
+            if message.name == YouTubePlayerView.stateHandler {
+                AppState.shared.handlePlayerState(message.body)
+                return
+            }
             guard let status = message.body as? String, status != "OK",
                   !didFallBack else { return }
             didFallBack = true
@@ -48,7 +78,10 @@ struct YouTubePlayerView: NSViewRepresentable {
             .ytp-cards-teaser, .ytp-cards-button,
             .ytp-watermark, .ytp-chrome-top,
             .iv-branding, .annotation,
-            #movie_player .ytp-gradient-top { display: none !important; }
+            #movie_player .ytp-gradient-top,
+            /* YouTube's own controls: the video is a drag handle, and the bar has play/pause + volume */
+            .ytp-chrome-bottom, .ytp-gradient-bottom,
+            .ytp-large-play-button, .ytp-pause-overlay { display: none !important; }
             html, body { overflow: hidden !important; background: #000 !important; }
             #primary, #primary-inner, ytd-watch-flexy,
             #player-container-outer, #player-container,
@@ -83,6 +116,12 @@ struct YouTubePlayerView: NSViewRepresentable {
             forMainFrameOnly: true
         ))
         config.userContentController.add(context.coordinator, name: Self.statusHandler)
+        config.userContentController.addUserScript(WKUserScript(
+            source: stateScript,
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: true
+        ))
+        config.userContentController.add(context.coordinator, name: Self.stateHandler)
 
         let prefs = WKWebpagePreferences()
         prefs.allowsContentJavaScript = true

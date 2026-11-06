@@ -42,10 +42,12 @@ Then just double-click the app normally from now on.
 | Feature | Detail |
 |---|---|
 | Always-on-top | Floats above all windows and Spaces |
-| No Dock icon | Lives quietly in the background |
-| Minimal UI | Live badge · stream title · close button |
-| Draggable | Click & drag from the bottom bar |
-| Quit | Click `×` or press `Cmd+Q` |
+| Mini player | `–` (or `Cmd+M`) shrinks it to just the bar — music keeps playing, and the hidden video drops to the lowest quality to save data |
+| Controls | Play/pause, volume (hover the speaker for a slider, click it to mute), click the video to pause |
+| Draggable | Drag from anywhere — the video or the bar — except the buttons |
+| Remembers | Position, mini mode and volume between launches |
+| Hide | `×` pauses and hides it; click the Dock icon to bring it back |
+| Quit | `Cmd+Q` |
 
 ---
 
@@ -75,9 +77,11 @@ pip3 install pillow
 ```
 claudefm-widget/
 ├── Sources/ClaudeFMWidget/
-│   ├── main.swift            # entry point, no Dock icon
-│   ├── AppDelegate.swift     # floating NSPanel setup
-│   ├── ContentView.swift     # SwiftUI UI (live badge, bottom bar)
+│   ├── main.swift            # entry point
+│   ├── AppDelegate.swift     # floating NSPanel, mini mode, saved position
+│   ├── AppState.swift        # player state + controls (play/pause, volume, quality)
+│   ├── ContentView.swift     # SwiftUI UI (live badge, bottom bar controls)
+│   ├── WindowDragArea.swift  # drag-the-window-from-anywhere view
 │   └── YouTubePlayerView.swift # WKWebView embedding Claude FM
 ├── create_icon.py            # generates AppIcon.icns from pixel art
 ├── package.sh                # builds .app bundle + .dmg
