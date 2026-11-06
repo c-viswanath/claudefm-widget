@@ -2,7 +2,37 @@ import SwiftUI
 import WebKit
 
 struct YouTubePlayerView: NSViewRepresentable {
-    private let watchURL = URL(string: "https://www.youtube.com/watch?v=YmQ7jRgf4f0")!
+    // Current Claude FM stream. 24/7 streams get restarted under new video IDs,
+    // and the old one goes private — so if this one stops playing we fall back
+    // to the channel's /live URL, which always points at whatever is live now.
+    private let watchURL = URL(string: "https://www.youtube.com/watch?v=tRsQsTMvPNg")!
+    private static let fallbackURL = URL(string: "https://www.youtube.com/@claude/live")!
+    private static let statusHandler = "streamStatus"
+
+    // Reports the player's playability ("OK", "LOGIN_REQUIRED" for private,
+    // "ERROR" for removed, …) back to Swift once the watch page has loaded.
+    private let statusScript = """
+    (function() {
+        var r = window.ytInitialPlayerResponse;
+        var s = r && r.playabilityStatus && r.playabilityStatus.status;
+        if (s) { window.webkit.messageHandlers.streamStatus.postMessage(s); }
+    })();
+    """
+
+    final class Coordinator: NSObject, WKScriptMessageHandler {
+        weak var webView: WKWebView?
+        private var didFallBack = false
+
+        func userContentController(_ controller: WKUserContentController,
+                                   didReceive message: WKScriptMessage) {
+            guard let status = message.body as? String, status != "OK",
+                  !didFallBack else { return }
+            didFallBack = true
+            webView?.load(URLRequest(url: YouTubePlayerView.fallbackURL))
+        }
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
 
     private let cleanupScript = """
     (function() {
@@ -47,6 +77,12 @@ struct YouTubePlayerView: NSViewRepresentable {
             forMainFrameOnly: false
         )
         config.userContentController.addUserScript(userScript)
+        config.userContentController.addUserScript(WKUserScript(
+            source: statusScript,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        ))
+        config.userContentController.add(context.coordinator, name: Self.statusHandler)
 
         let prefs = WKWebpagePreferences()
         prefs.allowsContentJavaScript = true
@@ -59,6 +95,7 @@ struct YouTubePlayerView: NSViewRepresentable {
         webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
             "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
+        context.coordinator.webView = webView
         webView.load(URLRequest(url: watchURL))
         AppState.shared.webView = webView
         return webView

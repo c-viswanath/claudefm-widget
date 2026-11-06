@@ -1,7 +1,7 @@
 <div align="center">
   <img src="icon_preview.png" width="120" alt="Claude FM icon" />
   <h1>Claude FM Widget</h1>
-  <p>A minimal floating macOS widget that plays the <a href="https://www.youtube.com/watch?v=YmQ7jRgf4f0">Claude FM</a> 24/7 lo-fi live stream — music for thinking & building.</p>
+  <p>A minimal floating macOS widget that plays the <a href="https://www.youtube.com/watch?v=tRsQsTMvPNg">Claude FM</a> 24/7 lo-fi live stream — music for thinking & building.</p>
   <img src="https://img.shields.io/badge/macOS-13%2B-black?style=flat-square&logo=apple" />
   <img src="https://img.shields.io/badge/Swift-5.9-orange?style=flat-square&logo=swift" />
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" />
